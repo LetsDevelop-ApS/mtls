@@ -9,10 +9,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
-	"os/exec"
-	"runtime"
-	"strings"
 	"sync"
 )
 
@@ -228,15 +224,9 @@ func (p *PeerTransport) Close() {
 }
 
 func getPeerID() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "unknown"
-	}
 	macAddress := getMacAddress()
-	cpuID := getCPUID()
-	data := fmt.Sprintf("%s-%s-%s", hostname, macAddress, cpuID)
 	hash := sha256.New()
-	hash.Write([]byte(data))
+	hash.Write([]byte(macAddress))
 	newPeerID := hex.EncodeToString(hash.Sum(nil))
 	return newPeerID
 }
@@ -253,38 +243,4 @@ func getMacAddress() string {
 		}
 	}
 	return "unknown"
-}
-
-func getCPUID() string {
-	var command string
-	var args []string
-
-	switch runtime.GOOS {
-	case "windows":
-		command = "wmic"
-		args = []string{"cpu", "get", "ProcessorId"}
-	case "darwin":
-		command = "sysctl"
-		args = []string{"-n", "machdep.cpu.brand_string"}
-	case "linux":
-		command = "cat"
-		args = []string{"/proc/cpuinfo"}
-	default:
-		return "unknown"
-	}
-
-	out, err := exec.Command(command, args...).Output()
-	if err != nil {
-		return "unknown"
-	}
-
-	cpuInfo := strings.TrimSpace(string(out))
-	if runtime.GOOS == "linux" {
-		for _, line := range strings.Split(cpuInfo, "\n") {
-			if strings.HasPrefix(line, "Serial") {
-				return strings.TrimSpace(strings.Split(line, ":")[1])
-			}
-		}
-	}
-	return cpuInfo
 }
