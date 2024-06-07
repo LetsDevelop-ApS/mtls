@@ -1,36 +1,50 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/LetsDevelop-ApS/mtls"
 )
 
+type CustomMessage struct {
+	*mtls.Message
+	MyCustomProperty string
+}
+
 func main() {
-	c := mtls.NewClient()
-	config := mtls.DefaultClientConfig().
-		WithCertFile("examples/client/certs/cert.pem").
-		WithKeyFile("examples/client/certs/key.key").
-		WithCaCertFile("examples/client/certs/ca.key").
+
+	conf := mtls.DefaultPeerConfig().
+		WithCertFile("certs/client/cert.pem").
+		WithKeyFile("certs/client/key.key").
+		WithCaCertFile("certs/client/ca.key").
+		WithMessageTypes([]mtls.MessageInterface{
+			&CustomMessage{},
+		}).
+		WithMessageHandler(func(m mtls.MessageInterface) {
+			switch msg := m.(type) {
+			case *mtls.RegisterSuccessMessage:
+				fmt.Println("Successfully registered with peer", msg.GetSenderID())
+			case *CustomMessage:
+				fmt.Printf("Got custom message from %s: %s", msg.GetSenderID(), msg.MyCustomProperty)
+			}
+
+		}).
 		Build()
-	err := c.Connect(config)
+
+	client := mtls.NewPeerTransport(conf)
+	fmt.Println("I have peer ID", client.PeerID)
+	conn, err := client.Connect("localhost", 3001)
 	if err != nil {
-		log.Fatalf("Failed to connect: %v", err)
+		log.Fatalf("Peer2 (Client) failed to connect to Peer1 (Server): %v", err)
 	}
 
-	// Example: Send data
-	err = c.Send([]byte("Hello, server!\n"))
+	// Send initial messages
+	err = conn.Send(mtls.NewRegisterMessage())
 	if err != nil {
-		log.Fatalf("Failed to send data: %v", err)
+		fmt.Println(err)
 	}
 
-	// Example: Receive data with a callback
-	err = c.Receive(func(data []byte) {
-		log.Printf("Received from server: %s", string(data))
-	})
-	if err != nil {
-		log.Fatalf("Failed to receive data: %v", err)
-	}
-
-	c.Close()
+	// Run indefinitely, handling connections and messages
+	select {}
 }

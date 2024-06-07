@@ -1,32 +1,49 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/LetsDevelop-ApS/mtls"
 )
 
-func HandleClientMessage(clientID string, message []byte) {
-	log.Printf("Business logic handling message from %s: %s", clientID, string(message))
-	// Implement your business logic here
+type CustomMessage struct {
+	*mtls.Message
+	MyCustomProperty string
+}
 
-	// Example: Send a response back to the client
-	err := mServer.SendMessage(clientID, []byte("Your response message here\n"))
-	if err != nil {
-		log.Printf("Failed to send response to %s: %v", clientID, err)
+func NewCustomMessage(s string) *CustomMessage {
+	return &CustomMessage{
+		Message:          &mtls.Message{},
+		MyCustomProperty: s,
 	}
 }
 
-var mServer *mtls.Server
-
 func main() {
-	config := mtls.DefaultServerConfig().
-		WithCertFile("examples/server/certs/cert.pem").
-		WithKeyFile("examples/server/certs/key.key").
-		WithCaCertFile("examples/server/certs/ca.key").
-		WithClientMessageHandler(HandleClientMessage).
+
+	conf := mtls.DefaultPeerConfig().
+		WithCertFile("certs/server/cert.pem").
+		WithKeyFile("certs/server/key.key").
+		WithCaCertFile("certs/server/ca.key").
+		WithMessageTypes([]mtls.MessageInterface{
+			&CustomMessage{},
+		}).
+		WithMessageHandler(func(msg mtls.MessageInterface) {
+			switch msg.(type) {
+			case *mtls.RegisterMessage:
+				msg.Reply(mtls.NewRegisterSuccessMessage())
+				msg.Reply(NewCustomMessage("Hello world!"))
+			}
+		}).
 		Build()
 
-	mServer = mtls.NewServer(config)
-	mServer.Start()
+	server := mtls.NewPeerTransport(conf)
+	fmt.Println("I have peer ID", server.PeerID)
+	err := server.Listen("127.0.0.1", 3001)
+	if err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+	defer server.Close()
+
+	select {}
 }

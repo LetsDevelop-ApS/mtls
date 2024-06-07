@@ -1,2 +1,2 @@
 # mtls
-Super quick and easy mTLS server and client.
+Super quick and easy mTLS transport layer. Can be used to switfly set up mTLS peers with inbound/outbound connections in any direction. Works for both a simple server-client setup or full-blown P2P mesh networks.
