@@ -10,8 +10,10 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
+	"runtime"
+	"strings"
 	"sync"
-	"time"
 )
 
 type PeerTransport struct {
@@ -231,8 +233,8 @@ func getPeerID() string {
 		hostname = "unknown"
 	}
 	macAddress := getMacAddress()
-	timestamp := time.Now().UnixNano()
-	data := fmt.Sprintf("%s-%s-%d", hostname, macAddress, timestamp)
+	cpuID := getCPUID()
+	data := fmt.Sprintf("%s-%s-%s", hostname, macAddress, cpuID)
 	hash := sha256.New()
 	hash.Write([]byte(data))
 	newPeerID := hex.EncodeToString(hash.Sum(nil))
@@ -251,4 +253,38 @@ func getMacAddress() string {
 		}
 	}
 	return "unknown"
+}
+
+func getCPUID() string {
+	var command string
+	var args []string
+
+	switch runtime.GOOS {
+	case "windows":
+		command = "wmic"
+		args = []string{"cpu", "get", "ProcessorId"}
+	case "darwin":
+		command = "sysctl"
+		args = []string{"-n", "machdep.cpu.brand_string"}
+	case "linux":
+		command = "cat"
+		args = []string{"/proc/cpuinfo"}
+	default:
+		return "unknown"
+	}
+
+	out, err := exec.Command(command, args...).Output()
+	if err != nil {
+		return "unknown"
+	}
+
+	cpuInfo := strings.TrimSpace(string(out))
+	if runtime.GOOS == "linux" {
+		for _, line := range strings.Split(cpuInfo, "\n") {
+			if strings.HasPrefix(line, "Serial") {
+				return strings.TrimSpace(strings.Split(line, ":")[1])
+			}
+		}
+	}
+	return cpuInfo
 }
