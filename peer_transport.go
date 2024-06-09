@@ -36,7 +36,7 @@ func NewPeerTransport(config *PeerConfig) *PeerTransport {
 }
 
 type MessageInterface interface {
-	GetConn() PeerConnection
+	GetConn() *PeerConnection
 	SetConn(*PeerConnection)
 	GetSenderID() string
 	SetSenderID(string)
@@ -48,11 +48,11 @@ type Message struct {
 	SenderID string
 }
 
-func (m Message) GetConn() PeerConnection {
+func (m Message) GetConn() *PeerConnection {
 	if m.conn != nil {
-		return *m.conn
+		return m.conn
 	}
-	return PeerConnection{}
+	return &PeerConnection{}
 }
 
 func (m *Message) SetConn(conn *PeerConnection) {

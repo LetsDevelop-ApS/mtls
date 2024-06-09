@@ -32,7 +32,7 @@ func main() {
 			switch msg.(type) {
 			case *mtls.RegisterMessage:
 				msg.Reply(mtls.NewRegisterSuccessMessage())
-				msg.Reply(NewCustomMessage("Hello world!"))
+				msg.GetConn().Send(NewCustomMessage("Hello world!"))
 			}
 		}).
 		Build()
